@@ -1,9 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 import type { MediaItem } from "@/lib/cloudinary";
+import SortableMediaGrid from "./SortableMediaGrid";
 
 type AdminDashboardProps = {
   initialItems: MediaItem[];
@@ -182,6 +182,46 @@ export default function AdminDashboard({
     router.refresh();
   };
 
+  const [savingOrder, setSavingOrder] = useState(false);
+  const reorderTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const persistOrder = useCallback(async (next: MediaItem[]) => {
+    setSavingOrder(true);
+    try {
+      const res = await fetch("/api/media/reorder", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          order: next.map((i) => ({
+            publicId: i.publicId,
+            resourceType: i.resourceType,
+          })),
+        }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        throw new Error(data?.error ?? "Failed to save order.");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to save order.");
+    } finally {
+      setSavingOrder(false);
+    }
+  }, []);
+
+  const onReorder = useCallback(
+    (next: MediaItem[]) => {
+      setItems(next);
+      if (reorderTimer.current) clearTimeout(reorderTimer.current);
+      reorderTimer.current = setTimeout(() => {
+        void persistOrder(next);
+      }, 350);
+    },
+    [persistOrder],
+  );
+
   const clearFinishedUploads = () => {
     setUploads((prev) => prev.filter((u) => u.status !== "done"));
   };
@@ -329,8 +369,14 @@ export default function AdminDashboard({
           <h2 className="text-[11px] uppercase tracking-editorial text-muted">
             All Media
           </h2>
-          <span className="text-[11px] uppercase tracking-editorial text-muted">
-            Hover to delete
+          <span className="flex items-center gap-3 text-[11px] uppercase tracking-editorial text-muted">
+            {savingOrder ? (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-foreground" />
+                Saving order
+              </span>
+            ) : null}
+            <span>Drag to reorder · Hover to delete</span>
           </span>
         </div>
 
@@ -342,45 +388,12 @@ export default function AdminDashboard({
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-1 md:grid-cols-3 md:gap-2 lg:grid-cols-4">
-            {items.map((item) => {
-              const busy = busyIds.has(item.publicId);
-              return (
-                <div
-                  key={item.publicId}
-                  className="group relative aspect-[3/4] w-full overflow-hidden bg-[#eeece5]"
-                >
-                  <Image
-                    src={item.thumbnailUrl}
-                    alt=""
-                    fill
-                    sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                    className="object-cover"
-                  />
-
-                  {item.resourceType === "video" ? (
-                    <span className="pointer-events-none absolute right-3 top-3 inline-flex items-center gap-1.5 bg-foreground/85 px-2 py-1 text-[9px] uppercase tracking-editorial text-background">
-                      Video
-                    </span>
-                  ) : null}
-
-                  <div className="absolute inset-0 flex items-end justify-between bg-gradient-to-t from-black/70 via-transparent to-transparent p-3 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                    <span className="font-mono text-[10px] text-white/80 truncate max-w-[60%]">
-                      {item.publicId.split("/").pop()}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => removeItem(item)}
-                      className="border border-white/40 bg-black/40 px-3 py-1.5 text-[10px] uppercase tracking-editorial text-white backdrop-blur transition-colors hover:bg-red-700 hover:border-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {busy ? "…" : "Delete"}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <SortableMediaGrid
+            items={items}
+            busyIds={busyIds}
+            onReorder={onReorder}
+            onDelete={removeItem}
+          />
         )}
       </section>
     </div>
