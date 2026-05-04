@@ -1,26 +1,82 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fafaf7;
+  --foreground: #0a0a0a;
+  --muted: #6b6b6b;
+  --border: #e5e3dc;
+  --accent: #0a0a0a;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-playfair);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
+html,
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+body {
+  font-feature-settings: "ss01", "cv11";
+  letter-spacing: 0.01em;
+}
+
+::selection {
+  background: var(--foreground);
+  color: var(--background);
+}
+
+.font-display {
+  font-family: var(--font-playfair), Georgia, serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.tracking-editorial {
+  letter-spacing: 0.18em;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fadeUp 0.6s ease-out forwards;
+}
+
+.scrollbar-clean::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-clean::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-clean::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+.scrollbar-clean::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
 }
