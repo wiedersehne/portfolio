@@ -108,46 +108,6 @@ export async function listMedia(): Promise<MediaItem[]> {
   return sortMedia(all.map(toMediaItem));
 }
 
-const computeNewItemPosition = async (): Promise<number> => {
-  const items = await listMedia();
-  const positioned = items
-    .map((i) => i.position)
-    .filter((p): p is number => p !== null);
-  if (positioned.length === 0) return POSITION_STEP;
-  const min = Math.min(...positioned);
-  return min - POSITION_STEP;
-};
-
-export async function uploadMedia(
-  file: Buffer,
-  filename: string,
-  resourceType: "image" | "video",
-): Promise<MediaItem> {
-  const position = await computeNewItemPosition();
-  const result = await new Promise<CloudinaryResource>((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      {
-        folder: FOLDER,
-        resource_type: resourceType,
-        public_id: filename.replace(/\.[^/.]+$/, ""),
-        overwrite: false,
-        unique_filename: true,
-        context: `position=${position}`,
-      },
-      (error, uploadResult) => {
-        if (error || !uploadResult) {
-          reject(error ?? new Error("Upload failed"));
-          return;
-        }
-        resolve(uploadResult as CloudinaryResource);
-      },
-    );
-    stream.end(file);
-  });
-
-  return toMediaItem(result);
-}
-
 export async function deleteMedia(
   publicId: string,
   resourceType: "image" | "video",

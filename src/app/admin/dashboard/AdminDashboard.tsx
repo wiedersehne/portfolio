@@ -38,10 +38,23 @@ export default function AdminDashboard({
     });
   };
 
-  const uploadOne = (file: File, index: number) => {
-    return new Promise<MediaItem | null>((resolve) => {
+  const uploadDirect = (
+    file: File,
+    index: number,
+    apiKey: string,
+    cloudName: string,
+    folder: string,
+    signature: string,
+    timestamp: number,
+    context: string,
+  ) => {
+    return new Promise<boolean>((resolve) => {
       const xhr = new XMLHttpRequest();
-      xhr.open("POST", "/api/media");
+      const resourceType = file.type.startsWith("video/") ? "video" : "image";
+      xhr.open(
+        "POST",
+        `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`,
+      );
 
       xhr.upload.onprogress = (e) => {
         if (!e.lengthComputable) return;
@@ -55,23 +68,20 @@ export default function AdminDashboard({
 
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            const data = JSON.parse(xhr.responseText) as { item: MediaItem };
-            setUploads((prev) =>
-              prev.map((u, i) =>
-                i === index ? { ...u, progress: 100, status: "done" } : u,
-              ),
-            );
-            resolve(data.item);
-            return;
-          } catch {
-            // fall through
-          }
+          setUploads((prev) =>
+            prev.map((u, i) =>
+              i === index ? { ...u, progress: 100, status: "done" } : u,
+            ),
+          );
+          resolve(true);
+          return;
         }
-        let message = "Upload failed.";
+        let message = `Upload failed (${xhr.status}).`;
         try {
-          const data = JSON.parse(xhr.responseText) as { error?: string };
-          if (data?.error) message = data.error;
+          const data = JSON.parse(xhr.responseText) as {
+            error?: { message?: string };
+          };
+          if (data?.error?.message) message = data.error.message;
         } catch {
           // ignore
         }
@@ -80,7 +90,7 @@ export default function AdminDashboard({
             i === index ? { ...u, status: "error", error: message } : u,
           ),
         );
-        resolve(null);
+        resolve(false);
       };
 
       xhr.onerror = () => {
@@ -91,41 +101,93 @@ export default function AdminDashboard({
               : u,
           ),
         );
-        resolve(null);
+        resolve(false);
       };
 
       const form = new FormData();
       form.append("file", file);
+      form.append("api_key", apiKey);
+      form.append("timestamp", String(timestamp));
+      form.append("signature", signature);
+      form.append("folder", folder);
+      form.append("context", context);
       xhr.send(form);
     });
   };
 
-  const handleFiles = useCallback(async (files: FileList | File[]) => {
-    const list = Array.from(files);
-    if (list.length === 0) return;
+  const handleFiles = useCallback(
+    async (files: FileList | File[]) => {
+      const list = Array.from(files);
+      if (list.length === 0) return;
 
-    setError(null);
-    const startIndex = uploads.length;
-    setUploads((prev) => [
-      ...prev,
-      ...list.map<UploadState>((file) => ({
-        file,
-        progress: 0,
-        status: "queued",
-      })),
-    ]);
+      setError(null);
+      const startIndex = uploads.length;
+      setUploads((prev) => [
+        ...prev,
+        ...list.map<UploadState>((file) => ({
+          file,
+          progress: 0,
+          status: "queued",
+        })),
+      ]);
 
-    const newItems: MediaItem[] = [];
-    for (let i = 0; i < list.length; i++) {
-      const item = await uploadOne(list[i], startIndex + i);
-      if (item) newItems.push(item);
-    }
+      let signaturesPayload: {
+        apiKey: string;
+        cloudName: string;
+        folder: string;
+        signatures: { signature: string; timestamp: number; context: string }[];
+      };
+      try {
+        const sigRes = await fetch("/api/upload-signature", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ count: list.length }),
+        });
+        if (!sigRes.ok) {
+          const data = (await sigRes.json().catch(() => ({}))) as {
+            error?: string;
+          };
+          throw new Error(data?.error ?? "Could not get upload signature.");
+        }
+        signaturesPayload = await sigRes.json();
+      } catch (e) {
+        const msg =
+          e instanceof Error ? e.message : "Could not get upload signature.";
+        setUploads((prev) =>
+          prev.map((u, i) =>
+            i >= startIndex && i < startIndex + list.length
+              ? { ...u, status: "error", error: msg }
+              : u,
+          ),
+        );
+        setError(msg);
+        return;
+      }
 
-    if (newItems.length > 0) {
-      setItems((prev) => [...newItems, ...prev]);
-      router.refresh();
-    }
-  }, [router, uploads.length]);
+      const { apiKey, cloudName, folder, signatures } = signaturesPayload;
+      let anySuccess = false;
+      for (let i = 0; i < list.length; i++) {
+        const sig = signatures[i];
+        if (!sig) continue;
+        const ok = await uploadDirect(
+          list[i],
+          startIndex + i,
+          apiKey,
+          cloudName,
+          folder,
+          sig.signature,
+          sig.timestamp,
+          sig.context,
+        );
+        if (ok) anySuccess = true;
+      }
+
+      if (anySuccess) {
+        router.refresh();
+      }
+    },
+    [router, uploads.length],
+  );
 
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
