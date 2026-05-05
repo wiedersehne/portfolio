@@ -15,11 +15,11 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "Dashuo — Portfolio",
-  description: "Editorial modeling portfolio of Dashuo.",
+  title: "Dashuo · River — Portfolio",
+  description: "Editorial modeling portfolio of Dashuo (River).",
   openGraph: {
-    title: "Dashuo — Portfolio",
-    description: "Editorial modeling portfolio of Dashuo.",
+    title: "Dashuo · River — Portfolio",
+    description: "Editorial modeling portfolio of Dashuo (River).",
   },
 };
 

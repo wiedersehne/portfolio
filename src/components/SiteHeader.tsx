@@ -13,7 +13,7 @@ export default function SiteHeader({ showAdminLink = false }: SiteHeaderProps) {
           className="font-display text-2xl tracking-tight md:text-3xl"
           aria-label="Home"
         >
-          Dashuo
+          Dashuo<span className="text-muted"> · </span>River
         </Link>
 
         <nav className="flex items-center gap-6 text-[11px] uppercase tracking-editorial text-muted">

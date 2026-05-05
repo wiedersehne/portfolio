@@ -26,7 +26,7 @@ export default async function Home() {
     { label: "Bust", value: "106", unit: "cm" },
     { label: "Waist", value: "82", unit: "cm" },
     { label: "Size", value: "50", unit: "eu" },
-    { label: "Shoes", value: "42", unit: "eu" },
+    { label: "Shoes", value: "43", unit: "eu" },
     { label: "Eyes", value: "Brown" },
     { label: "Hair", value: "Brown" },
   ];
@@ -45,6 +45,9 @@ export default async function Home() {
               <h1 className="font-display text-7xl leading-[0.9] md:text-[9rem] lg:text-[11rem]">
                 Dashuo
               </h1>
+              <p className="mt-3 font-display text-2xl italic text-muted md:mt-4 md:text-3xl">
+                — River
+              </p>
             </div>
             <div className="flex flex-col justify-end md:col-span-4">
               <p className="max-w-md text-base leading-relaxed text-muted md:text-lg">
